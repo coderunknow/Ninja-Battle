@@ -652,6 +652,9 @@ export function drawStatues(ctx, view, t, sky, lightRgb) {
   }
 }
 
+// CanvasGradient objects are only valid for the context that created them.
+const GROUND_GRAD = new Map();
+
 export function drawGround(ctx, view, t, sky, cracks, q = null) {
   const B = worldBounds(view, 420);
   const y0 = 0;                       // the ground plane in world units
@@ -678,8 +681,16 @@ export function drawGround(ctx, view, t, sky, cracks, q = null) {
   if (strip) {
     ctx.drawImage(strip, B.left, y0, B.width, depth);
   } else {
-    const g = ctx.createLinearGradient(0, y0, 0, y0 + depth);
-    for (const [p, c] of stops) g.addColorStop(p, rgbCss(c));
+    // The gradient's geometry is view-independent (world space, from the ground
+    // plane down) and its stops only change at palette keys, so it is built once
+    // per palette and reused instead of re-allocated every frame.
+    let g = GROUND_GRAD.get(key);
+    if (!g) {
+      g = ctx.createLinearGradient(0, y0, 0, y0 + depth);
+      for (const [p, c] of stops) g.addColorStop(p, rgbCss(c));
+      if (GROUND_GRAD.size > 6) GROUND_GRAD.clear();
+      GROUND_GRAD.set(key, g);
+    }
     ctx.fillStyle = g;
     ctx.fillRect(B.left, y0, B.width, depth);
   }
