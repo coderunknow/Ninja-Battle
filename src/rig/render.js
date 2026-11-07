@@ -242,14 +242,22 @@ function drawHairFront(ctx, kind, pal, st, R) {
   for (let i = 0; i < n; i++) {
     const x = (-0.62 + i * (1.24 / (n - 1))) * R;
     const w = noise1(t * 2.1 + i * 1.3, 11) * (0.4 + st.flow * 1.6);
-    const len = kind === 'naruto' ? R * (0.34 + (i % 2) * 0.14) : R * (i === 1 ? 0.95 : 0.62);
+    // Bang length controls how much of the face survives. Sasuke's used to hang
+    // 0.62-0.95R from the forehead, which is past the eye line (eyes sit ~0.6R
+    // below the hair root), so both eyes were completely buried at every camera
+    // distance and his face read as a blank oval. A fringe that stops at the
+    // brow keeps the spiky silhouette while leaving the eyes legible.
+    const len = kind === 'naruto' ? R * (0.34 + (i % 2) * 0.14) : R * (i === 1 ? 0.40 : 0.30);
     const ang = Math.PI * 0.5 + i * 0.13 + w * 0.08;
     spikeShape(ctx, x, -R * 0.62, len, ang, R * 0.15, -0.5);
     ctx.fill();
   }
   if (kind === 'sasuke') {
-    // one bang crossing the face (hides the eye — key silhouette cue)
-    spikeShape(ctx, R * 0.1, -R * 0.7, R * 0.86, Math.PI * 0.62, R * 0.16, -0.7);
+    // The single asymmetric bang that defines his silhouette. It crosses the
+    // *rear* eye only (offset toward the back of the head) and stops above the
+    // mouth: enough to read as Sasuke, without turning his face into hair.
+    const back = st.facing > 0 ? -1 : 1;
+    spikeShape(ctx, back * R * 0.16, -R * 0.72, R * 0.52, Math.PI * 0.5 + back * 0.10, R * 0.13, -0.55 * back);
     ctx.fill();
   }
   ctx.restore();
@@ -332,9 +340,11 @@ function drawHead(ctx, rig, pose, j, pal, style, st) {
   ctx.fill();
   ctx.restore();
 
-  // ear
+  // Ear. It sits at the back of the skull, not on the cheek: at -0.14R it was
+  // drawn across the middle of the face and read as a pink blob (very visible on
+  // Sasuke's pale skin). The skull's rear edge is around -0.88R.
   ctx.beginPath();
-  ctx.ellipse(-R * 0.14, R * 0.06, R * 0.15, R * 0.23, 0.24, 0, TAU);
+  ctx.ellipse(-R * 0.62, R * 0.02, R * 0.14, R * 0.22, 0.18, 0, TAU);
   ctx.fillStyle = pal.skinShade;
   ctx.fill();
   ctx.strokeStyle = pal.skinLine;
@@ -401,13 +411,16 @@ function drawBand(ctx, R, pal, st) {
   ctx.stroke();
   ctx.globalAlpha = 1;
 
-  // steel plate
-  const px0 = R * 0.1, px1 = R * 0.84;
+  // Steel plate. It has to read as a forehead protector, not a visor: it covers
+  // the front half of the band, is tall enough to sit inside the cloth, and its
+  // outer edge stops inside the skull silhouette (0.84R was past the temple, so
+  // the plate appeared to float off the side of the head).
+  const px0 = R * 0.12, px1 = R * 0.70;
   ctx.beginPath();
-  ctx.moveTo(px0, bandY - R * 0.28);
-  ctx.lineTo(px1, bandY - R * 0.2);
-  ctx.lineTo(px1, bandY + R * 0.2);
-  ctx.lineTo(px0, bandY + R * 0.1);
+  ctx.moveTo(px0, bandY - R * 0.22);
+  ctx.lineTo(px1, bandY - R * 0.26);
+  ctx.lineTo(px1, bandY + R * 0.30);
+  ctx.lineTo(px0, bandY + R * 0.26);
   ctx.closePath();
   const g = ctx.createLinearGradient(px0, bandY, px1, bandY + R * 0.2);
   g.addColorStop(0, pal.plateShade);

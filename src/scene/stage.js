@@ -289,7 +289,20 @@ export function renderAt(ctx, t, w, h, opts = {}) {
     if (!e.who) return e;
     const p = anchorOf(e.who, e.hand);
     if (!p) return e;
-    return { ...e, x: p.x + (e.offX || 0), y: p.y + (e.offY || 0) };
+    const out = { ...e, x: p.x + (e.offX || 0), y: p.y + (e.offY || 0) };
+    // Hand-held energy crawls back up the arm toward the shoulder. Attach the
+    // elbow anchor here, from the live skeleton, so it follows the arm through
+    // the animation instead of sitting at a fixed offset.
+    if (e.kind === 'chidori' || e.kind === 'rasengan') {
+      const st = e.who === 'n' ? cast.n : cast.s;
+      const rig = e.who === 'n' ? rigNaruto : rigSasuke;
+      if (st) {
+        const a = fighterAnchors({ rig, pose: st.pose, x: st.x, y: st.y, facing: st.facing, rot: st.rot, scale: 1 });
+        out.arm = e.hand === 'backHand' ? a.chest : a.frontElbow;
+        out.head = a.head;
+      }
+    }
+    return out;
   };
 
   // background-ish fx (dust, debris, smoke, streaks) behind characters

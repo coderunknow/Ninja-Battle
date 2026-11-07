@@ -259,29 +259,95 @@ FX.chidori = (ctx, view, e, t) => {
   glowDot(ctx, x, y, r * 1.5, '150,200,255', 0.55 * amp);
   glowDot(ctx, x, y, r * 0.7, '235,245,255', 0.9 * amp);
 
-  // chaotic branching bolts
-  for (let i = 0; i < 7; i++) {
+  // Chaotic branching bolts.
+  //
+  // These used to be 7 single-jag lines up to 3.9x the radius long, thrown in
+  // random directions. Visually that read as bent wire, not lightning: a thunder
+  // bolt is a *tapered* channel that forks, and it should not leave the aura.
+  // Now each bolt is clamped to the aura radius, forked into 2-3 children, and
+  // stroked three times (wide dim halo, mid body, thin white core) so it has an
+  // energy gradient and dims with distance from the hand.
+  // A bolt must never be drawn across the character's face. When the hand is
+  // held close to the head (a gathered chidori guard), a bolt launched toward
+  // the body strokes straight over the eye and reads as a UI artifact. `e.head`
+  // comes from the live skeleton; for each candidate direction, reject it if the
+  // segment passes within the head radius, else take the opposite direction.
+  const HEAD_R = 34;
+  const clearOfHead = (ax, ay, bx, by) => {
+    if (!e.head) return true;
+    const dx = bx - ax, dy = by - ay;
+    const L2 = dx * dx + dy * dy || 1;
+    const u = clamp01(((e.head.x - ax) * dx + (e.head.y - ay) * dy) / L2);
+    const px = ax + dx * u, py = ay + dy * u;
+    return Math.hypot(px - e.head.x, py - e.head.y) > HEAD_R;
+  };
+
+  for (let i = 0; i < 6; i++) {
     const seed = (e.seed ?? 1) * 977 + i * 31 + frame * 13;
-    const a = hash2(seed, 1) * TAU;
-    const len = r * (1.5 + hash2(seed, 2) * 2.4);
-    const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;
-    ctx.strokeStyle = `rgba(190,225,255,${(0.85 * amp) * (0.5 + hash2(seed, 3) * 0.5)})`;
-    ctx.lineWidth = 1.6 + hash2(seed, 4) * 1.4;
-    jagged(ctx, x, y, ex, ey, seed, len * 0.45, 3);
+    let a = hash2(seed, 1) * TAU;
+    const len = r * (0.9 + hash2(seed, 2) * 1.5);
+    let ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;
+    if (!clearOfHead(x, y, ex, ey)) {
+      a += Math.PI;
+      ex = x + Math.cos(a) * len; ey = y + Math.sin(a) * len;
+      if (!clearOfHead(x, y, ex, ey)) continue;
+    }
+    const bright = (0.5 + hash2(seed, 3) * 0.5) * amp;
+    jagged(ctx, x, y, ex, ey, seed, len * 0.38, 3);
+    ctx.strokeStyle = `rgba(120,170,255,${0.20 * bright})`;
+    ctx.lineWidth = 5.0 + hash2(seed, 4) * 2.0;
     ctx.stroke();
-    // white-hot core
-    ctx.strokeStyle = `rgba(255,255,255,${0.5 * amp})`;
-    ctx.lineWidth = 0.9;
+    ctx.strokeStyle = `rgba(180,215,255,${0.70 * bright})`;
+    ctx.lineWidth = 2.0 + hash2(seed, 4) * 0.9;
     ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${0.55 * bright})`;
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+
+    // fork: 1-2 children, shorter, off the far end of the parent
+    const forks = 1 + (hash2(seed, 5) > 0.55 ? 1 : 0);
+    for (let f = 0; f < forks; f++) {
+      const fa = a + (hash2(seed, 6 + f) - 0.5) * 1.5;
+      const fl = len * (0.22 + hash2(seed, 8 + f) * 0.3);
+      const fx = ex + Math.cos(fa) * fl, fy = ey + Math.sin(fa) * fl;
+      jagged(ctx, ex, ey, fx, fy, seed + 41 + f, fl * 0.5, 2);
+      ctx.strokeStyle = `rgba(170,210,255,${0.45 * bright})`;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255,255,255,${0.30 * bright})`;
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    }
   }
-  // arcs crawling over the arm
-  if (e.arm) {
+  // Arcs crawling over the arm toward the elbow. `e.arm` is supplied by the
+  // renderer from the live skeleton (stage.js anchorFx), so this follows the
+  // arm through the charge animation; it used to be dead code with no producer.
+  // Never draw a bolt across the character's face. Poses where the forearm folds
+  // up beside the head (e.g. a gathered chidori guard) put the elbow right next
+  // to the skull, and arcs along the limb then stroked straight over the eye.
+  const armClear = e.arm && (!e.head
+    || Math.hypot(e.arm.x - e.head.x, e.arm.y - e.head.y) > 62);
+  if (armClear) {
     const { x: ax, y: ay } = e.arm;
+    const dx = ax - x, dy = ay - y;
+    const alen = Math.hypot(dx, dy) || 1;
+    // unit normal, to spread the arcs across the limb rather than down its axis
+    const nx = -dy / alen, ny = dx / alen;
     for (let i = 0; i < 3; i++) {
       const seed = (e.seed ?? 1) * 613 + i * 7 + frame * 5;
-      ctx.strokeStyle = `rgba(170,215,255,${0.6 * amp})`;
-      ctx.lineWidth = 1.4;
-      jagged(ctx, x, y, ax + (hash2(seed, 9) - 0.5) * 14, ay + (hash2(seed, 8) - 0.5) * 14, seed, 12, 2);
+      // start partway up the limb so the arcs read as travelling over it
+      const s0 = 0.25 + hash2(seed, 11) * 0.4;
+      const sx = x + dx * s0, sy = y + dy * s0;
+      const off = (hash2(seed, 9) - 0.5) * 6;
+      const ex = ax + nx * (off + (hash2(seed, 13) - 0.5) * 5);
+      const ey = ay + ny * (off + (hash2(seed, 13) - 0.5) * 5);
+      const a0 = 0.55 * amp * (0.6 + hash2(seed, 15) * 0.4);
+      jagged(ctx, sx, sy, ex, ey, seed, Math.min(10, alen * 0.22), 2);
+      ctx.strokeStyle = `rgba(150,200,255,${a0 * 0.35})`;
+      ctx.lineWidth = 3.4;
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(225,240,255,${a0 * 0.8})`;
+      ctx.lineWidth = 1.1;
       ctx.stroke();
     }
   }
