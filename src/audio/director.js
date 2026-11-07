@@ -7,7 +7,7 @@
 
 import { AudioEngine } from './engine.js';
 
-const CUE_MAP = {
+export const CUE_MAP = {
   // impacts
   block: 'block',
   block2: 'block2',
@@ -63,6 +63,17 @@ const CUE_MAP = {
   combo: 'swipe',
   combo2: 'swipe2',
   duel: 'swipe',
+  // Character vocalisations. These were scripted in the choreography but absent
+  // from this map, so the director filtered every one of them out before the
+  // engine ever saw it — 13 lines of dialogue that never played.
+  chargeAmbient: 'chargeAmbient',
+  voiceNaruto1: 'voiceNaruto1', voiceNaruto2: 'voiceNaruto2',
+  voiceNaruto3: 'voiceNaruto3', voiceNaruto4: 'voiceNaruto4',
+  voiceNaruto5: 'voiceNaruto5', voiceNaruto6: 'voiceNaruto6',
+  voiceNaruto7: 'voiceNaruto7',
+  voiceSasuke1: 'voiceSasuke1', voiceSasuke2: 'voiceSasuke2',
+  voiceSasuke3: 'voiceSasuke3', voiceSasuke4: 'voiceSasuke4',
+  voiceSasuke5: 'voiceSasuke5', voiceSasuke6: 'voiceSasuke6',
 };
 
 export class AudioDirector {

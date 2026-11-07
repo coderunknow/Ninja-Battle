@@ -17,6 +17,11 @@ import { QUALITY, PROFILES, FrameGovernor } from './core/quality.js';
 import { prebake } from './core/platform.js';
 import { clamp, clamp01, lerp } from './core/math.js';
 
+// Cached compiled script. compile() itself is memoised, but reading it once here
+// keeps the per-frame slow-motion lookup free of a function call and lets the
+// scrub markers use the choreography's own act list.
+let SCRIPT = null;
+
 const $ = (id) => document.getElementById(id);
 
 const canvas = $('stage');
@@ -70,8 +75,8 @@ function resize() {
 // ---------------------------------------------------------------------------
 function activeSlowmo(t) {
   // the choreography declares slow-motion windows; they only affect playback rate
-  const D = compile();
-  if (!D.slowmo) return 1;
+  if (!SCRIPT || !SCRIPT.slowmo) return 1;
+  const D = SCRIPT;
   for (const s of D.slowmo) {
     if (t >= s.t0 && t <= s.t1) {
       // ease in and out of the slow region
@@ -367,8 +372,9 @@ window.addEventListener('keydown', (e) => {
   if (tag === 'INPUT') return;
   switch (e.code) {
     case 'Space': e.preventDefault(); togglePlay(); break;
-    case 'ArrowLeft': e.preventDefault(); seek(state.t - (e.shiftKey ? 1 : 5)); break;
-    case 'ArrowRight': e.preventDefault(); seek(state.t + (e.shiftKey ? 1 : 5)); break;
+    // 2 s per press; Shift = 10 s coarse jump (matches the on-screen help)
+    case 'ArrowLeft': e.preventDefault(); seek(state.t - (e.shiftKey ? 10 : 2)); break;
+    case 'ArrowRight': e.preventDefault(); seek(state.t + (e.shiftKey ? 10 : 2)); break;
     case 'KeyK': togglePlay(); break;
     case 'KeyF': toggleFullscreen(); break;
     case 'KeyM': toggleMute(); break;
@@ -420,19 +426,26 @@ async function begin() {
 
 function buildScrubMarks() {
   const marks = $('scrub-marks');
-  const D = compile();
-  const acts = [
-    { t: 0, label: 'Act I' },
-    { t: 26, label: 'II' },
-    { t: 58, label: 'III' },
-    { t: 80, label: 'IV' },
-    { t: 118, label: 'V' },
-  ];
+  if (!marks) return;
+  const D = SCRIPT || compile();
+  // Single source of truth: the act boundaries declared by the choreography.
+  // (These used to be hardcoded here as 0/26/58/80/118 while the script actually
+  // had its boundaries at 0/26/76/132/196 — the markers did not match the film.)
+  const acts = (D.acts && D.acts.length)
+    ? D.acts
+    : [
+        { t: 0, label: 'Act I' },
+        { t: 26, label: 'II' },
+        { t: 76, label: 'III' },
+        { t: 132, label: 'IV' },
+        { t: 196, label: 'V' },
+      ];
   marks.innerHTML = '';
   for (const a of acts) {
     const i = document.createElement('i');
     i.style.left = (a.t / TOTAL_DURATION) * 100 + '%';
     i.title = a.label;
+    i.setAttribute('aria-hidden', 'true');
     marks.appendChild(i);
   }
 }
@@ -441,10 +454,10 @@ async function boot() {
   resize();
   await initAssets();
   prebake(ctx, canvas.width, canvas.height);
-  compile();
-  director = new AudioDirector(compile());
+  SCRIPT = compile();
+  director = new AudioDirector(SCRIPT);
   director.engine.setVolume(state.volume);
-  governor = new FrameGovernor({ window: 120, targetMs: 26, enabled: false });
+  governor = new FrameGovernor({ window: 120, targetMs: 22, enabled: true });
   $('begin').addEventListener('click', begin);
   // paint the first frame behind the gate so the transition has no black flash
   state.t = 0;
@@ -471,6 +484,8 @@ window.__ninja = {
   get state() { return state; },
   total: TOTAL_DURATION,
   renderAt,
+  get script() { return SCRIPT || compile(); },
+  get quality() { return QUALITY.mode; },
   setQuality,
   canvas,
 };

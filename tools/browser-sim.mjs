@@ -365,6 +365,36 @@ scrubEl.dispatch('pointermove', { pointerId: 1, clientX: 960 });
 check('scrub drag seeks', N.t > N.total * 0.6, `t=${N.t.toFixed(2)}`);
 scrubEl.dispatch('pointerup', { pointerId: 1, clientX: 960 });
 
+// --- regression: scrub markers must match the choreography's act boundaries
+const markEls = elements.get('scrub-marks').children;
+const script = N.script || null;
+if (script && script.acts) {
+  check('scrub markers come from the script act list',
+    markEls.length === script.acts.length,
+    `markers=${markEls.length} acts=${script.acts.length}`);
+  const firstPct = parseFloat(markEls[0].style.left);
+  const lastAct = script.acts[script.acts.length - 1];
+  const lastPct = parseFloat(markEls[markEls.length - 1].style.left);
+  check('last marker sits at the last act boundary',
+    Math.abs(lastPct - (lastAct.t / N.total) * 100) < 0.01,
+    `${lastPct.toFixed(2)}% vs ${((lastAct.t / N.total) * 100).toFixed(2)}%`);
+  check('acts strictly increase', script.acts.every((a, i) => i === 0 || a.t > script.acts[i - 1].t));
+} else {
+  check('script exposes an act list for the scrub markers', false, 'script.acts missing');
+}
+
+// --- regression: keyboard seek intervals (2 s, Shift = 10 s)
+N.seek(100); pump(1);
+keydown('ArrowRight');
+pump(1);
+const dPlain = N.t - 100;
+check('ArrowRight steps 2s', Math.abs(dPlain - 2) < 0.12, `dt=${dPlain.toFixed(2)}`);
+N.seek(100); pump(1);
+keydown('ArrowRight', { shiftKey: true });
+pump(1);
+const dShift = N.t - 100;
+check('Shift+ArrowRight steps 10s', Math.abs(dShift - 10) < 0.12, `dt=${dShift.toFixed(2)}`);
+
 // run to the end and make sure it stops cleanly
 N.seek(N.total - 0.5);
 pump(120);

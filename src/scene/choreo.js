@@ -984,6 +984,16 @@ export function buildScript() {
   S.titles.push({ t: 228.0, dur: 5.5, kind: 'line', text: 'The clash ends. The question does not.' });
   S.titles.push({ t: 240.0, dur: 14.0, kind: 'credits', text: 'NARUTO  vs  SASUKE', sub: 'a stickman cinematic' });
 
+  // Act boundaries, declared once here and consumed by the player's scrub
+  // markers and the QA report. Previously main.js hardcoded a different set.
+  S.acts = [
+    { t: 0,   label: 'I — The Valley of the Fallen' },
+    { t: 26,  label: 'II — First Exchange' },
+    { t: 76,  label: 'III — Ninjutsu' },
+    { t: 132, label: 'IV — Escalation' },
+    { t: 196, label: 'V — Rasengan vs Chidori' },
+  ];
+
   return S;
 }
 
