@@ -171,6 +171,27 @@ export function postOverlay(ctx, w, h, darkness, variant = 0, bakeGrain = true, 
   return rec;
 }
 
+// Sky gradient: baked as a tall 1-D strip and stretched. The stops are quantised
+// into the key so a sky key change rebuilds it once, not every frame.
+export function skyStrip(top, mid, bottom, horizonPx, heightPx) {
+  const q = (c) => c.map((v) => Math.round(v / 3) * 3).join(',');
+  const key = `sky|${q(top)}|${q(mid)}|${q(bottom)}|${Math.round(horizonPx)}|${Math.round(heightPx)}`;
+  return get(key, () => {
+    const H = Math.max(16, Math.min(2048, Math.round(heightPx)));
+    const cv = makeCanvas(4, H);
+    if (!cv) return null;
+    const c2 = cv.getContext('2d');
+    const g = c2.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, rgbCss(top));
+    g.addColorStop(0.52, rgbCss(mid));
+    g.addColorStop(0.84, rgbCss([(mid[0] + bottom[0] * 3) / 4, (mid[1] + bottom[1] * 3) / 4, (mid[2] + bottom[2] * 3) / 4]));
+    g.addColorStop(1, rgbCss(bottom));
+    c2.fillStyle = g;
+    c2.fillRect(0, 0, 4, H);
+    return cv;
+  });
+}
+
 // Ground gradient: baked as a vertical strip in world units and blitted. The
 // gradient stops depend only on the sky palette and the visible depth, both of
 // which are quantised in the key, so this is stable frame to frame.

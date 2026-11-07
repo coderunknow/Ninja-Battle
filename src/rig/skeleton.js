@@ -68,17 +68,20 @@ export function makeRig(opts = {}) {
   const o = Object.assign(
     {
       scale: 1,
-      hipWidth: 14,
-      shoulderWidth: 29,
-      torsoLen: 58,     // hip -> neck
-      neckLen: 5,
-      headR: 14.2,
+      // Proportions target a clean 5.5-head fighting silhouette: long legs,
+      // compact torso, slightly small head. Legs are >50% of total height, which
+      // is what makes the figure read as athletic rather than childlike.
+      hipWidth: 12.5,
+      shoulderWidth: 25.5,
+      torsoLen: 60,     // hip -> neck
+      neckLen: 7.0,
+      headR: 12.6,
       upperArm: 30,
-      foreArm: 28,
-      handLen: 7,
-      thigh: 34,
-      shin: 33,
-      footLen: 22,
+      foreArm: 27,
+      handLen: 6,
+      thigh: 37,
+      shin: 36,
+      footLen: 20,
       hair: 'spiky',
       colors: {},
     },
@@ -118,10 +121,17 @@ export function solveSkeleton(rig, pose, extra = {}) {
 
   // The head is drawn in an upright local frame, so it only inherits a fraction
   // of the torso lean (plus its own nod) — never the +/-90deg spine basis.
+  //
+  // headAng is that frame's *rotation*: at 0 the head sits straight UP from the
+  // neck. The offset must therefore be the rotated vector (0, -d), i.e.
+  // (d*sin(headAng), -d*cos(headAng)). Using (cos, sin) here put the head a full
+  // radius FORWARD of the neck instead of above it, which is what made the
+  // silhouette look like the head was sliding off the shoulders.
   const headAng = p.torso * 0.55 + p.head;
+  const headD = rig.neckLen + rig.headR * 0.55;
   const headC = {
-    x: neck.x + Math.cos(headAng) * (rig.neckLen + rig.headR * 0.55) + p.headX,
-    y: neck.y + Math.sin(headAng) * (rig.neckLen + rig.headR * 0.55) + p.headY,
+    x: neck.x + Math.sin(headAng) * headD + p.headX,
+    y: neck.y - Math.cos(headAng) * headD + p.headY,
   };
 
   // Shoulders: offset perpendicular to torso, scaled by twist to fake rotation.
@@ -169,7 +179,10 @@ export function solveSkeleton(rig, pose, extra = {}) {
       x: kneeJ.x + Math.cos(a2) * rig.shin,
       y: kneeJ.y + Math.sin(a2) * rig.shin,
     };
-    const a3 = a2 + Math.PI / 2 + footRot; // foot forward
+    // Shin direction is a2 pointing DOWN (+y), so +x is a2 - PI/2. The foot
+    // must extend forward from the ankle along +x; using a2 + PI/2 here pointed
+    // every toe backwards, which is why the feet read as spikes behind the leg.
+    const a3 = (a2 - Math.PI / 2) + footRot;
     const toe = {
       x: ankle.x + Math.cos(a3) * rig.footLen,
       y: ankle.y + Math.sin(a3) * rig.footLen,

@@ -22,6 +22,7 @@ export const PALETTES = {
     hair: '#f5c542', hairLight: '#ffe89b', hairShade: '#d1971b',
     jacket: '#ff7d1a', jacketLight: '#ffa552', jacketShade: '#c9560a',
     jacketDark: '#20222e', jacketDarkLight: '#3a3f52',
+    jacketSleeve: '#22242f', jacketSleeveShade: '#0e0f15', jacketSleeveFar: '#171923',
     pants: '#f0721a', pantsShade: '#b34a08',
     shin: '#1b1d28', sandal: '#26325a', sandalLight: '#465f9c',
     bandCloth: '#1a3a70', bandClothLight: '#2f5da8',
@@ -35,6 +36,7 @@ export const PALETTES = {
     hair: '#1b1d29', hairLight: '#3b4462', hairShade: '#070810',
     jacket: '#414d69', jacketLight: '#61719a', jacketShade: '#242c41',
     jacketDark: '#151926', jacketDarkLight: '#2c3346',
+    jacketSleeve: '#3c4761', jacketSleeveShade: '#202739', jacketSleeveFar: '#2a3348',
     pants: '#242a3c', pantsShade: '#12151f',
     shin: '#171b26', sandal: '#101318', sandalLight: '#2b3344',
     bandCloth: '#16203a', bandClothLight: '#26354f',
@@ -256,34 +258,60 @@ function drawHairFront(ctx, kind, pal, st, R) {
 // ---------------------------------------------------------------------------
 // Head
 // ---------------------------------------------------------------------------
+// Neck is drawn as its own layer BEHIND the torso and head. Previously it was
+// stroked inside drawHead, on top of the torso, which made it look like a tube
+// glued over the face.
+function drawNeck(ctx, rig, j, pal, style) {
+  const a = j.neck, b = j.head;
+  const w = rig.headR * 0.46;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const L = Math.hypot(dx, dy) || 1;
+  const ux = dx / L, uy = dy / L;
+  // extend slightly into the skull so no gap shows when the head turns
+  const x0 = a.x - ux * 4, y0 = a.y - uy * 4;
+  const x1 = a.x + ux * (L + 3), y1 = a.y + uy * (L + 3);
+  const nx = -uy, ny = ux;
+  ctx.beginPath();
+  ctx.moveTo(x0 + nx * w, y0 + ny * w);
+  ctx.lineTo(x1 + nx * w * 0.86, y1 + ny * w * 0.86);
+  ctx.quadraticCurveTo(x1, y1, x1 - nx * w * 0.86, y1 - ny * w * 0.86);
+  ctx.lineTo(x0 - nx * w, y0 - ny * w);
+  ctx.closePath();
+  ctx.fillStyle = pal.skinShade;
+  ctx.fill();
+  // shadow where the jaw sits on the neck
+  ctx.save();
+  ctx.clip();
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = pal.skinLine;
+  const g = ctx.createLinearGradient(x1, y1, x0, y0);
+  g.addColorStop(0, 'rgba(0,0,0,0.55)');
+  g.addColorStop(0.45, 'rgba(0,0,0,0.05)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(Math.min(x0, x1) - 30, Math.min(y0, y1) - 30, Math.abs(x1 - x0) + 60, Math.abs(y1 - y0) + 60);
+  ctx.restore();
+}
+
 function drawHead(ctx, rig, pose, j, pal, style, st) {
   const R = rig.headR;
   ctx.save();
   ctx.translate(j.head.x, j.head.y);
   ctx.rotate(j.headAng);
 
-  // neck
-  ctx.save();
-  ctx.strokeStyle = pal.skinShade;
-  ctx.lineWidth = R * 0.4;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(0, R * 0.6);
-  ctx.lineTo(-R * 0.06, R * 1.5);
-  ctx.stroke();
-  ctx.restore();
-
   drawHairBack(ctx, style, pal, st, R);
 
   // skull silhouette
+  // Skull: a rounded cranium tapering to a small chin. Both fighters share this
+  // base shape; hair and the headband do the character-specific work.
   const skull = () => {
     ctx.beginPath();
-    ctx.moveTo(R * 0.3, R * 0.56);
-    ctx.bezierCurveTo(R * 0.66, R * 0.52, R * 0.88, R * 0.24, R * 0.9, -R * 0.12);
-    ctx.bezierCurveTo(R * 0.93, -R * 0.72, R * 0.5, -R * 1.06, -R * 0.02, -R * 1.04);
-    ctx.bezierCurveTo(-R * 0.6, -R * 1.02, -R * 1.0, -R * 0.66, -R * 0.94, -R * 0.06);
-    ctx.bezierCurveTo(-R * 0.9, R * 0.3, -R * 0.56, R * 0.42, -R * 0.24, R * 0.6);
-    ctx.bezierCurveTo(-R * 0.02, R * 0.74, R * 0.12, R * 0.68, R * 0.3, R * 0.56);
+    ctx.moveTo(R * 0.30, R * 0.52);                                  // jaw front
+    ctx.bezierCurveTo(R * 0.62, R * 0.40, R * 0.84, R * 0.10, R * 0.84, -R * 0.22);
+    ctx.bezierCurveTo(R * 0.86, -R * 0.78, R * 0.46, -R * 1.06, -R * 0.02, -R * 1.06);
+    ctx.bezierCurveTo(-R * 0.54, -R * 1.06, -R * 0.90, -R * 0.74, -R * 0.88, -R * 0.20);
+    ctx.bezierCurveTo(-R * 0.86, R * 0.22, -R * 0.58, R * 0.40, -R * 0.30, R * 0.54);
+    ctx.bezierCurveTo(-R * 0.10, R * 0.64, R * 0.12, R * 0.62, R * 0.30, R * 0.52);
     ctx.closePath();
   };
   skull();
@@ -334,7 +362,8 @@ function drawHead(ctx, rig, pose, j, pal, style, st) {
 }
 
 function drawBand(ctx, R, pal, st) {
-  const bandY = -R * 0.46;
+  // sits on the forehead, above the brow line
+  const bandY = -R * 0.60;
   const t = st.time;
   // cloth tails behind the head
   for (let k = 0; k < 2; k++) {
@@ -564,12 +593,22 @@ function drawTorso(ctx, rig, pose, j, pal, style, st) {
   const px = -uy, py = ux;             // perpendicular
 
   // width at t along the spine (t=0 hips, t=1 neck)
+  // Width profile along the spine: narrow waist, broad chest, then a shoulder
+  // slope that tucks in sharply toward the neck. The chest peak sits at t=0.84
+  // so the widest point is at the deltoids rather than mid-ribs.
   const prof = (t) => {
-    const w = rig.hipWidth * 1.42
-      + (rig.shoulderWidth * 1.18 - rig.hipWidth * 1.42) * smoothstep01((t - 0.05) / 0.55)
-      - (rig.shoulderWidth * 0.28) * smoothstep01((t - 0.86) / 0.14);
-    // slight waist pinch
-    return w * (1 - 0.13 * Math.exp(-((t - 0.42) ** 2) / 0.02));
+    const waist = rig.hipWidth * 1.30;
+    const chest = rig.shoulderWidth * 1.16;
+    const hipPeak = rig.hipWidth * 1.46;
+    let w;
+    if (t < 0.30) {
+      w = lerp(hipPeak, waist, smoothstep01(t / 0.30));
+    } else if (t < 0.84) {
+      w = lerp(waist, chest, smoothstep01((t - 0.30) / 0.54));
+    } else {
+      w = lerp(chest, rig.shoulderWidth * 0.62, smoothstep01((t - 0.84) / 0.16));
+    }
+    return w;
   };
   const P = (t, side) => {
     const cx = hx + ux * L * t, cy = hy + uy * L * t;
@@ -750,41 +789,74 @@ function drawCollar(ctx, rig, j, pal, style, st) {
     ctx.quadraticCurveTo(cw * 0.25 + sway * 0.5, 18, cw * 0.02 + sway, 32);
     ctx.stroke();
   } else {
-    // orange collar ring around the neck
-    const cw = rig.shoulderWidth * 0.36;
+    // High orange collar. Sits low on the neck so the jaw and chin stay clear;
+    // the front edge is cut away where the chin overlaps it.
+    const cw = rig.shoulderWidth * 0.265;
     ctx.beginPath();
-    ctx.ellipse(0, -2, cw, 5.5, 0, 0, TAU);
+    ctx.moveTo(-cw, 5.0);
+    ctx.quadraticCurveTo(-cw * 0.9, -2.4, -cw * 0.44, -4.0);
+    ctx.lineTo(cw * 0.48, -4.0);
+    ctx.quadraticCurveTo(cw * 0.92, -2.2, cw * 0.94, 5.0);
+    ctx.quadraticCurveTo(0, 9.0, -cw, 5.0);
+    ctx.closePath();
     ctx.fillStyle = pal.jacketLight;
     ctx.fill();
     ctx.strokeStyle = pal.jacketShade;
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.25;
     ctx.stroke();
+    // inner shadow of the collar opening
+    ctx.globalAlpha = 0.45;
+    ctx.beginPath();
+    ctx.ellipse(0, -3.4, cw * 0.44, 2.0, 0, 0, TAU);
+    ctx.fillStyle = pal.jacketShade;
+    ctx.fill();
+    ctx.globalAlpha = 1;
   }
   ctx.restore();
 }
 
 function drawJacketHem(ctx, rig, j, pal, st) {
-  const S = rig.scale;
   const flow = st.flow;
   ctx.save();
   ctx.translate(j.hip.x, j.hip.y);
   ctx.rotate(j.torsoAngle + Math.PI / 2);
+
+  // Flaps: broad and short, flaring backwards with speed. Drawn before the
+  // waistband so the band caps them cleanly.
   for (const dir of [-1, 1]) {
-    const wav = noise1(st.time * 2.6 + dir, 41) * (1.5 + flow * 7);
-    const drop = (dir > 0 ? 22 : 27) * (1 - flow * 0.2);
+    const wav = noise1(st.time * 2.6 + dir, 41) * (1.2 + flow * 6);
+    const drop = (dir > 0 ? 19 : 23) * (1 - flow * 0.15);
+    const halfW = rig.hipWidth * (dir > 0 ? 0.62 : 0.7);
     ctx.beginPath();
-    ctx.moveTo(dir * rig.hipWidth * 0.55, -2);
-    ctx.quadraticCurveTo(dir * rig.hipWidth * 0.95 - flow * 8, drop * 0.55 + wav * 0.4, dir * rig.hipWidth * 0.8 - flow * 14, drop + wav);
-    ctx.quadraticCurveTo(dir * rig.hipWidth * 0.1, drop * 0.6, dir * rig.hipWidth * 0.2, 2);
+    ctx.moveTo(dir * rig.hipWidth * 0.30, -4);
+    ctx.quadraticCurveTo(
+      dir * (halfW + 3.0) - flow * 5, drop * 0.45 + wav * 0.3,
+      dir * (halfW + 1.0) - flow * 11, drop + wav
+    );
+    ctx.quadraticCurveTo(
+      dir * halfW * 0.35 - flow * 7, drop * 0.72 + wav * 0.5,
+      dir * rig.hipWidth * 0.02, drop * 0.20
+    );
     ctx.closePath();
     ctx.fillStyle = dir > 0 ? pal.jacket : pal.jacketShade;
     ctx.fill();
     ctx.strokeStyle = pal.line;
-    ctx.globalAlpha = 0.35;
-    ctx.lineWidth = 1.1;
+    ctx.globalAlpha = 0.40;
+    ctx.lineWidth = 1.0;
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
+
+  // Waistband caps the top of both flaps so they read as one garment.
+  ctx.beginPath();
+  ctx.roundRect(-rig.hipWidth * 0.92, -7.5, rig.hipWidth * 1.84, 7.0, 3.0);
+  ctx.fillStyle = pal.jacketShade;
+  ctx.fill();
+  ctx.strokeStyle = pal.line;
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 1.0;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
   ctx.restore();
 }
 
@@ -792,50 +864,75 @@ function drawJacketHem(ctx, rig, j, pal, st) {
 // Limbs
 // ---------------------------------------------------------------------------
 function drawFist(ctx, arm, pal, S, closed) {
-  const r = 4.6;
+  const r = 4.2;
   ctx.save();
   ctx.translate(arm.wrist.x, arm.wrist.y);
   ctx.rotate(arm.angle + Math.PI / 2);
+  const g = closed > 0.5;
   ctx.beginPath();
-  ctx.roundRect(-r, -r * 0.5, r * 2, r * 2.2, r * 0.75);
+  if (g) {
+    // mitt-shaped fist: wide at the knuckles, narrowing to the wrist
+    ctx.moveTo(-r, -r * 0.35);
+    ctx.quadraticCurveTo(-r, r * 1.15, 0, r * 1.2);
+    ctx.quadraticCurveTo(r, r * 1.15, r, -r * 0.35);
+    ctx.quadraticCurveTo(0, -r * 0.85, -r, -r * 0.35);
+    ctx.closePath();
+  } else {
+    ctx.ellipse(0, r * 0.25, r * 0.82, r * 1.05, 0, 0, TAU);
+  }
   ctx.fillStyle = pal.skin;
   ctx.fill();
   ctx.strokeStyle = pal.skinLine;
-  ctx.globalAlpha = 0.55;
-  ctx.lineWidth = 1.3;
+  ctx.lineWidth = 1.15;
+  ctx.globalAlpha = 0.85;
   ctx.stroke();
   ctx.globalAlpha = 1;
-  // knuckle line
-  if (closed > 0.4) {
+  if (g) {
+    // single knuckle crease + top highlight: enough to read as a fist at 8 px
     ctx.strokeStyle = pal.skinShade;
-    ctx.lineWidth = 1.1;
+    ctx.lineWidth = 1.0;
     ctx.beginPath();
-    ctx.moveTo(-r * 0.5, r * 0.7);
-    ctx.lineTo(r * 0.55, r * 0.62);
+    ctx.moveTo(-r * 0.55, r * 0.34);
+    ctx.quadraticCurveTo(0, r * 0.52, r * 0.55, r * 0.32);
     ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.30)';
+    ctx.beginPath();
+    ctx.ellipse(-r * 0.22, r * 0.02, r * 0.34, r * 0.2, -0.5, 0, TAU);
+    ctx.fill();
   }
   ctx.restore();
 }
 
 function drawArm(ctx, rig, arm, pal, style, st, isBack) {
-  const S = rig.scale;
   const lw = 2.0;
   const outline = pal.line;
 
   if (isBack) ctx.globalAlpha *= 0.94;
 
-  // forearm (sleeve-wrapped)
-  const fore = [arm.elbow, arm.wrist];
-  limb(ctx, fore, [7.4, 6.2], isBack ? pal.jacketShade : pal.jacket, outline, lw, isBack ? null : pal.jacketShade);
+  // Upper arm and forearm are separate tapered segments that OVERLAP at the
+  // elbow. Drawing the forearm first and capping the joint with the upper arm
+  // hides the seam, so the arm reads as one continuous limb instead of two
+  // sticks joined by a step.
+  // Both arms are the same dark sleeve; the far arm is only slightly darker so
+  // it separates without changing colour (it used to switch to the orange
+  // "shade" tint, which read as a different garment entirely).
+  const sleeve = isBack ? pal.jacketSleeveFar : pal.jacketSleeve;
+  limb(ctx, [arm.elbow, arm.wrist], [7.6, 6.0], sleeve, outline, lw, pal.jacketSleeveShade);
+  limb(ctx, [arm.root, arm.elbow], [10.2, 7.4], sleeve, outline, lw, pal.jacketSleeveShade);
 
-  // upper arm
-  const up = [arm.root, arm.elbow];
-  limb(ctx, up, [10.6, 7.8], isBack ? pal.jacketShade : pal.jacketLight, outline, lw, pal.jacketShade);
+  // elbow joint: a filled disc in the sleeve colour bridges the two capsules
+  ctx.beginPath();
+  ctx.arc(arm.elbow.x, arm.elbow.y, 3.9, 0, TAU);
+  ctx.fillStyle = sleeve;
+  ctx.fill();
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = lw * 0.75;
+  ctx.stroke();
 
-  // shoulder cap
+  // shoulder cap: only Naruto's jacket has the dark yoke pauldron
   if (style === 'naruto') {
     ctx.beginPath();
-    ctx.arc(arm.root.x, arm.root.y, 5.2, 0, TAU);
+    ctx.arc(arm.root.x, arm.root.y, 4.6, 0, TAU);
     ctx.fillStyle = isBack ? pal.jacketDarkLight : pal.jacketDark;
     ctx.fill();
     ctx.strokeStyle = outline;
@@ -843,45 +940,89 @@ function drawArm(ctx, rig, arm, pal, style, st, isBack) {
     ctx.stroke();
   }
 
-  drawFist(ctx, arm, pal, S, st.grip);
+  drawFist(ctx, arm, pal, rig.scale, st.grip);
   ctx.globalAlpha = 1;
 }
 
 function drawLeg(ctx, rig, leg, pal, style, st, isBack) {
-  const S = rig.scale;
   const lw = 2.1;
   const outline = pal.line;
 
   if (isBack) ctx.globalAlpha *= 0.96;
 
-  // thigh
-  limb(ctx, [leg.root, leg.knee], [13.4, 9.6], isBack ? pal.pantsShade : pal.pants, outline, lw, pal.pantsShade);
-  // shin
-  limb(ctx, [leg.knee, leg.ankle], [9.0, 7.2], isBack ? '#101219' : pal.shin, outline, lw, null);
+  // shin first, then thigh overlaps it at the knee (same trick as the arms)
+  limb(ctx, [leg.knee, leg.ankle], [8.4, 6.4], isBack ? '#0e1016' : pal.shin, outline, lw, null);
+  limb(ctx, [leg.root, leg.knee], [12.6, 8.4], isBack ? pal.pantsShade : pal.pants, outline, lw, pal.pantsShade);
 
-  // sandal
-  const a = leg.ankle, t = leg.toe, h = leg.heel;
+  // knee cap
   ctx.beginPath();
-  ctx.moveTo(h.x, h.y);
-  ctx.lineTo(a.x + (t.x - a.x) * 0.18, a.y + (t.y - a.y) * 0.18 - 2.6);
-  ctx.lineTo(t.x, t.y - 1.0);
-  ctx.quadraticCurveTo(t.x + 3.4, t.y + 3.0, t.x - 2.4, t.y + 3.4);
-  ctx.lineTo(h.x + 1.4, h.y + 3.0);
+  ctx.arc(leg.knee.x, leg.knee.y, 4.4, 0, TAU);
+  ctx.fillStyle = isBack ? pal.pantsShade : pal.pants;
+  ctx.fill();
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = lw * 0.7;
+  ctx.stroke();
+
+  // Sandal: built in a frame aligned to the actual ankle->toe direction, so it
+  // can never float off the ankle regardless of foot rotation.
+  const a = leg.ankle, t = leg.toe;
+  const fa = Math.atan2(t.y - a.y, t.x - a.x);
+  const fl = Math.hypot(t.x - a.x, t.y - a.y) || rig.footLen;
+  ctx.save();
+  ctx.translate(a.x, a.y);
+  // the ankle joint is the pivot; the sole sits just under it
+  ctx.beginPath();
+  ctx.arc(0, 0, 3.2, 0, TAU);
+  ctx.fillStyle = isBack ? '#0a0c11' : pal.shin;
+  ctx.fill();
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = lw * 0.65;
+  ctx.stroke();
+
+  ctx.rotate(fa);
+  const heel = -3.0, toe = fl + 1.5, h = 3.1;
+  ctx.beginPath();
+  ctx.moveTo(heel, -h * 0.15);
+  ctx.quadraticCurveTo(heel - 1.4, h * 0.9, heel + 2.2, h);      // heel
+  ctx.lineTo(toe - 1.6, h);                                       // sole
+  ctx.quadraticCurveTo(toe + 1.4, h * 0.55, toe, -h * 0.55);      // toe box
+  ctx.quadraticCurveTo(heel + 5, -h * 1.05, heel, -h * 0.15);     // instep
   ctx.closePath();
   ctx.fillStyle = isBack ? '#0b0e14' : pal.sandal;
   ctx.fill();
   ctx.strokeStyle = outline;
-  ctx.lineWidth = lw * 0.85;
+  ctx.lineWidth = lw * 0.8;
   ctx.stroke();
-  // sole highlight
+  // sole rim + strap
   ctx.strokeStyle = pal.sandalLight;
   ctx.globalAlpha = 0.55;
   ctx.lineWidth = 1.0;
   ctx.beginPath();
-  ctx.moveTo(h.x + 2.5, h.y + 2.4);
-  ctx.lineTo(t.x - 4, t.y + 2.4);
+  ctx.moveTo(heel + 1.6, h * 0.82);
+  ctx.lineTo(toe - 1.2, h * 0.82);
+  ctx.stroke();
+  ctx.globalAlpha = 0.75;
+  ctx.beginPath();
+  ctx.moveTo(fl * 0.30, -h * 0.72);
+  ctx.lineTo(fl * 0.56, h * 0.35);
   ctx.stroke();
   ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ankle wrap (sandal cuff)
+  ctx.save();
+  ctx.translate(a.x, a.y);
+  ctx.rotate(fa);
+  ctx.beginPath();
+  ctx.roundRect(-3.6, -4.0, 7.2, 6.4, 2.2);
+  ctx.fillStyle = isBack ? '#11141c' : pal.sandalLight;
+  ctx.fill();
+  ctx.strokeStyle = outline;
+  ctx.globalAlpha = 0.9;
+  ctx.lineWidth = lw * 0.7;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function drawPelvis(ctx, rig, j, pal) {
@@ -889,13 +1030,16 @@ function drawPelvis(ctx, rig, j, pal) {
   ctx.save();
   ctx.translate(h.x, h.y);
   ctx.rotate(j.torsoAngle + Math.PI / 2);
+  // narrower than the torso hem so it tucks underneath instead of bulging out
   ctx.beginPath();
-  ctx.ellipse(0, 2, rig.hipWidth * 0.92, 9.5, 0, 0, TAU);
+  ctx.ellipse(0, 2.5, rig.hipWidth * 1.02, 9.0, 0, 0, TAU);
   ctx.fillStyle = pal.pants;
   ctx.fill();
   ctx.strokeStyle = pal.line;
-  ctx.lineWidth = 2.0;
+  ctx.lineWidth = 1.7;
+  ctx.globalAlpha = 0.8;
   ctx.stroke();
+  ctx.globalAlpha = 1;
   ctx.restore();
 }
 
@@ -1006,6 +1150,7 @@ export function drawFighter(ctx, o) {
   // back layer
   drawLeg(ctx, rig, joints.legBack, pal, style, st, true);
   drawArm(ctx, rig, joints.armBack, pal, style, st, true);
+  drawNeck(ctx, rig, joints, pal, style);
 
   drawTorso(ctx, rig, pose, joints, pal, style, st);
   drawJacketHem(ctx, rig, joints, pal, st);
