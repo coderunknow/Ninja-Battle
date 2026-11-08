@@ -147,8 +147,13 @@ function cameraAt(t, cast, view) {
     const avgY = ((n.y || 0) + (s.y || 0)) / 2;
     focusY = avgY + c.y * 0.5 + (mv.yBias ?? 0);
   } else if ((on === 'n' || on === 's') && (on === 'n' ? n : s)) {
+    // Single-subject shot. The authored x/y is an offset *from the subject*, so
+    // it has to apply at full strength: the old 0.25 factor silently divided any
+    // framing offset by four, which made over-the-shoulder compositions
+    // impossible (a -210 push landed the subject dead centre instead of at the
+    // thirds).
     const a = on === 'n' ? n : s;
-    focusX = a.x + c.x * 0.25;
+    focusX = a.x + c.x;
     focusY = (a.y || 0) + c.y * 0.55;
   } else {
     focusX = c.x;

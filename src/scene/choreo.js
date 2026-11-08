@@ -297,10 +297,14 @@ export function buildScript() {
   // --- 50.0 Sasuke lands, taunts; Naruto struggles up
   K(48.35, -6, 'land', { u0: 0.1, dur: 0.5 });
   K(48.9, -6, 'guard', { breath: 1 });
+  // Close-up insert on Sasuke delivering the line. Until now every single shot
+  // framed both fighters, so the characters were never larger than ~130 px tall
+  // at 1080p and the face work was invisible. `on: 's'` centres him.
   CAM(49.6, [
-    { t: 49.6, x: -60, y: -70, zoom: 1.0, ease: 'inOutCubic' },
-    { t: 52.2, x: -40, y: -80, zoom: 1.1, ease: 'inOutCubic' },
-  ]);
+    { t: 49.6, x: -60, y: -70, zoom: 1.1, ease: 'inOutCubic' },
+    { t: 50.4, x: -34, y: -86, zoom: 2.9, ease: 'outCubic' },
+    { t: 52.3, x: -40, y: -88, zoom: 3.05, ease: 'inOutSine' },
+  ], { on: 's', margin: 1.2, push: 0.16 });
   S.titles.push({ t: 50.2, dur: 2.6, kind: 'line', text: '“You still don’t understand.”' });
   N(51.4, -96, 'getUp', { dur: 1.0 });
   N(52.4, -96, 'guardLow', { breath: 1.6 });
@@ -387,10 +391,17 @@ export function buildScript() {
     delete S.actors[id + 'c'];
   });
   SFX(63.3, 'puff', {});
+  // Insert on Naruto's hand seal while he shouts. Holding him in a wide
+  // two-shot during his own line wasted the loudest beat of the act.
+  // The insert has to end before the clones spawn (63.3) — they appear 20-80
+  // world units from Naruto, which at zoom 2.2 stacks them on top of each other
+  // into an unreadable blob. Tight on him alone while he forms the seal.
   CAM(62.4, [
     { t: 62.4, x: -110, y: -104, zoom: 0.92, ease: 'inOutCubic' },
-    { t: 64.6, x: -80, y: -110, zoom: 1.04, ease: 'inOutCubic' },
-  ], { push: 1.0 });
+    { t: 62.62, x: 22, y: -80, zoom: 2.15, ease: 'outCubic' },
+    { t: 63.05, x: 26, y: -82, zoom: 2.3, ease: 'inOutSine' },
+    { t: 63.4, x: -80, y: -110, zoom: 1.02, ease: 'inOutCubic' },
+  ], { on: 'n', margin: 1.2, push: 0.22 });
 
   // --- 64.4 Sasuke cuts through the clones (chidori-laced kunai)
   K(64.2, 40, 'kunaiThrow', { emit: 0.34 });

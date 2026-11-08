@@ -257,7 +257,7 @@ function drawHairFront(ctx, kind, pal, st, R) {
     // *rear* eye only (offset toward the back of the head) and stops above the
     // mouth: enough to read as Sasuke, without turning his face into hair.
     const back = st.facing > 0 ? -1 : 1;
-    spikeShape(ctx, back * R * 0.16, -R * 0.72, R * 0.52, Math.PI * 0.5 + back * 0.10, R * 0.13, -0.55 * back);
+    spikeShape(ctx, back * R * 0.16, -R * 0.72, R * 0.34, Math.PI * 0.5 + back * 0.10, R * 0.12, -0.55 * back);
     ctx.fill();
   }
   ctx.restore();
@@ -357,6 +357,18 @@ function drawHead(ctx, rig, pose, j, pal, style, st) {
 
   drawFace(ctx, R, pal, style, st);
 
+  // Rear-eye bang: a hair-shaped occluder sitting over the back eye only. Drawn
+  // between the face and the fringe so it reads as hair in front of the eye,
+  // with the fringe layering over its root.
+  if (style === 'sasuke') {
+    ctx.save();
+    ctx.fillStyle = pal.hair;
+    const back = st.facing > 0 ? -1 : 1;
+    spikeShape(ctx, back * R * 0.30, -R * 0.66, R * 0.60, Math.PI * 0.52 + back * 0.05, R * 0.20, -0.45 * back);
+    ctx.fill();
+    ctx.restore();
+  }
+
   drawHairFront(ctx, style, pal, st, R);
 
   // head outline (kept subtle so the face stays soft)
@@ -415,12 +427,16 @@ function drawBand(ctx, R, pal, st) {
   // the front half of the band, is tall enough to sit inside the cloth, and its
   // outer edge stops inside the skull silhouette (0.84R was past the temple, so
   // the plate appeared to float off the side of the head).
+  // The plate's vertical span must stay *inside* the cloth band, or it pokes up
+  // through the hair line and reads as a grey bar floating on the forehead.
+  // The cloth spans bandY-0.10 .. bandY+0.26 here (its top curves up further
+  // toward the centre), so the plate sits at -0.06 .. +0.24.
   const px0 = R * 0.12, px1 = R * 0.70;
   ctx.beginPath();
-  ctx.moveTo(px0, bandY - R * 0.22);
-  ctx.lineTo(px1, bandY - R * 0.26);
-  ctx.lineTo(px1, bandY + R * 0.30);
-  ctx.lineTo(px0, bandY + R * 0.26);
+  ctx.moveTo(px0, bandY - R * 0.06);
+  ctx.lineTo(px1, bandY - R * 0.10);
+  ctx.lineTo(px1, bandY + R * 0.24);
+  ctx.lineTo(px0, bandY + R * 0.20);
   ctx.closePath();
   const g = ctx.createLinearGradient(px0, bandY, px1, bandY + R * 0.2);
   g.addColorStop(0, pal.plateShade);
@@ -437,7 +453,7 @@ function drawBand(ctx, R, pal, st) {
   ctx.lineWidth = R * 0.07;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.arc(R * 0.46, bandY - R * 0.05, R * 0.12, 0.7, 4.5);
+  ctx.arc(R * 0.45, bandY + R * 0.06, R * 0.10, 0.7, 4.5);
   ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(R * 0.34, bandY - R * 0.15);
@@ -449,14 +465,19 @@ function drawBand(ctx, R, pal, st) {
     ctx.strokeStyle = '#7d8796';
     ctx.lineWidth = R * 0.08;
     ctx.beginPath();
-    ctx.moveTo(px0 + R * 0.04, bandY - R * 0.28);
-    ctx.lineTo(px1 - R * 0.03, bandY + R * 0.2);
+    ctx.moveTo(px0 + R * 0.04, bandY - R * 0.08);
+    ctx.lineTo(px1 - R * 0.03, bandY + R * 0.22);
     ctx.stroke();
   }
   ctx.restore();
 }
 
 function drawFace(ctx, R, pal, style, st) {
+  // Which eye is covered by hair. Sasuke's asymmetric bang crosses the eye on
+  // the back of his head; drawing it *over* the eye is the whole point of the
+  // look, but drawing it over the *front* eye would hide the eye the viewer is
+  // meant to read. The face is drawn, then the occluder, then the fringe on top.
+
   const blink = clamp01(st.blink);
   const angry = clamp01(st.angry);
   const eyeOpen = clamp01((1 - blink) * (0.55 + 0.45 * clamp01(st.alert)));
@@ -538,9 +559,13 @@ function drawFace(ctx, R, pal, style, st) {
     ctx.restore();
   };
 
+  // Three-quarter view: the near eye sits forward, the far eye sits back and
+  // smaller. They used to be at 0.38R and 0.0R, and since each eye spans +-0.19R
+  // they overlapped into a single smeared shape — which is why the faces read as
+  // one eye plus a blur at any distance. Separated and pushed apart.
   const fdir = st.facing > 0 ? 1 : -1;
-  drawEye(fdir * R * 0.38, 1);
-  drawEye(fdir * R * 0.0, 0.5);
+  drawEye(fdir * R * 0.45, 1);
+  drawEye(fdir * R * 0.10, 0.52);
 
   // nose
   ctx.strokeStyle = pal.skinLine;
