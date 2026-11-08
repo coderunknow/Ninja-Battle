@@ -1,0 +1,24 @@
+{
+  "name": "ninja-battle",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Naruto vs Sasuke \u2014 cinematic stickman battle (Canvas2D, deterministic timeline)",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "dev": "node tools/serve.mjs",
+    "qa": "node tools/qa-all.mjs",
+    "qa:timeline": "node tools/test-timeline.mjs",
+    "qa:player": "node tools/browser-sim.mjs",
+    "qa:frames": "node tools/render-frames.mjs",
+    "qa:perf": "node tools/perf.mjs",
+    "qa:audio": "node tools/test-audio.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^0.1.80",
+    "node-web-audio-api": "^2.2.0"
+  }
+}

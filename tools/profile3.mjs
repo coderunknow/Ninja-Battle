@@ -1,0 +1,13 @@
+import { createCanvas } from '@napi-rs/canvas';
+import { setCanvasFactory } from '../src/core/platform.js';
+import * as stage from '../src/scene/stage.js';
+setCanvasFactory((w, h) => createCanvas(w, h));
+await stage.initAssets();
+const W = 1920, H = 1080;
+const cv = createCanvas(W, H);
+const ctx = cv.getContext('2d');
+const T = Number(process.argv[2] || 172);
+stage.renderAt(ctx, T, W, H, {});
+const t0 = process.hrtime.bigint();
+for (let i = 0; i < 20; i++) stage.renderAt(ctx, T, W, H, {});
+console.log('avg ms', (Number(process.hrtime.bigint() - t0) / 1e6 / 20).toFixed(1));

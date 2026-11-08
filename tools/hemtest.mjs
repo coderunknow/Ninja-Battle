@@ -1,0 +1,14 @@
+import { createCanvas } from '@napi-rs/canvas';
+import { setCanvasFactory } from '../src/core/platform.js';
+import { drawFighter } from '../src/rig/render.js';
+import { sampleClip, NEUTRAL } from '../src/rig/clips.js';
+import { makeRig } from '../src/rig/skeleton.js';
+import fs from 'node:fs';
+setCanvasFactory((w, h) => createCanvas(w, h));
+const rig = makeRig();
+const cv = createCanvas(600, 700); const ctx = cv.getContext('2d');
+ctx.fillStyle = '#1a1e28'; ctx.fillRect(0, 0, 600, 700);
+ctx.save(); ctx.translate(300, 660); ctx.scale(4, 4);
+drawFighter(ctx, { rig, pose: sampleClip('idle', 0.5) || NEUTRAL, x: 0, y: 0, facing: 1, style: 'naruto', time: 1, flow: 0.2 });
+ctx.restore();
+fs.writeFileSync('qa-out/hemtest.png', cv.toBuffer('image/png'));
